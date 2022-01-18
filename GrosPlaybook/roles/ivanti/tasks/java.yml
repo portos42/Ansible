@@ -1,0 +1,73 @@
+- name: Check if java is installed
+  command: java -version
+  register: java_result
+  ignore_errors: True
+  tags: [ 'emss_pre' ]
+
+- name: "RHEL | copy jre on server"
+  copy:
+    src: templates/jre-8u211-linux-x64.rpm
+    dest: "{{ pkg_dest }}"
+  register: copy_pkg
+  when: 
+    - java_result is failed
+    - ansible_facts['os_family'] == "RedHat"
+
+- name: "RHEL | install rpm"
+  yum:
+    name: "{{ pkg_dest }}/jre-8u211-linux-x64.rpm"
+    state: present
+  when:
+    - java_result is failed 
+    - copy_pkg is succeeded
+    - ansible_facts['os_family'] == "RedHat"
+  register: install_rpm
+
+- name: "Debian | copy jre on server"
+  copy:
+    src: templates/jre-8u211-linux-x64.tar.gz
+    dest: "{{ pkg_dest }}"
+  register: copy_pkg
+  when: 
+    - java_result is failed
+    - ansible_facts['os_family'] == "Debian"
+
+- name: "Debian | create java folder"
+  file:
+    path: "{{ java_folder }}"
+    state: directory
+    mode: '0755'
+  when:
+    - java_result is failed
+    - copy_pkg is succeeded
+    - ansible_facts['os_family'] == "Debian"
+  register: create_folder
+
+- name: "Debian | Extract Java archive"
+  command: "tar -xzf {{ pkg_dest }}/jre-8u211-linux-x64.tar.gz -C {{ java_folder }}"
+  when: 
+    - java_result is failed
+    - ansible_facts['os_family'] == "Debian"
+    - create_folder is succeeded
+  register: extract
+
+- name: "Debian | Fix ownership"
+  file: 
+    state: directory
+    path: "{{ java_folder }}"
+    owner: root
+    group: root
+    recurse: yes
+  when:
+    - java_result is failed
+    - ansible_facts['os_family'] == "Debian"
+    - extract is succeeded
+  register: owner
+
+- name: "Debian | Make Java available for system"
+  command: 'update-alternatives --install "/usr/bin/java" "java" "{{java_folder}}/{{java_name}}/bin/java" 1'
+  when:
+    - java_result is failed
+    - ansible_facts['os_family'] == "Debian"
+    - owner is succeeded
+  register: install_rpm

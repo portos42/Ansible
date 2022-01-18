@@ -1,0 +1,16 @@
+- 
+  become: true
+  gather_facts: false
+  hosts: all
+  name: "Correction cron"
+  remote_user: adm-cheops
+  tasks: ~
+- 
+  backup: true
+  insertbefore: BOF
+  line: "MAILTO= \"\""
+  lineinfile: ~
+  name: "Ajout de la ligne"
+  path: /var/spool/cron/crontabs/expertiz
+  state: present
+

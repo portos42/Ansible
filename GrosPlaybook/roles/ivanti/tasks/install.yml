@@ -1,0 +1,54 @@
+---
+- name: "Check directory exist"
+  stat:
+    path: "{{ fs_emss }}"
+  register: dir_emss
+  tags: [ 'emss_ins' ]
+
+#- debug:
+#    msg: "{{  hostvars.dir_emss }} existe "
+#  when:  dir_emss.stat.isdir is defined and dir_emss.stat.isdir
+#  tags: [ 'emss_ins' ]
+
+- name: Create a directory if it does not exist
+  file:
+    path: "{{ fs_emss }}/srcemss"
+    state: directory
+    mode: '0755'
+  when: dir_emss.stat.isdir is defined
+  tags: [ 'emss_ins' ]
+
+- name: "Unarchive fichier d'installation dans repertoire depot"
+  unarchive:
+    src: "templates/{{ file_src_emss }}"
+    dest: "{{ fs_emss }}/srcemss"
+  register: untar_emss
+  when:  dir_emss.stat.isdir is defined and dir_emss.stat.isdir
+  tags: [ 'emss_ins' ]
+
+#- name: check unarchive
+#  debug:
+#    msg: " Results : {{ untar_emss }}"
+#  when:  dir_emss.stat.isdir is defined and dir_emss.stat.isdir
+#  tags: [ 'emss_ins' ]
+
+- name: "Installation Agent EMSS"
+  shell: "cd {{ fs_emss }}/srcemss/; ./install -silent -d /opt/cheops -p http://{{ ip_emss }} -sno DF409755-2C1DF862"
+  register: install_emss
+  tags: [ 'emss_ins' ]
+
+#- debug:
+#    msg: "Installation EMSS OK"
+#  when: install_emss is succeeded
+#  tags: [ 'emss_ins' ]
+
+- name: "Etat agent EMSS"
+  shell: "{{ fs_emss }}/patchservice status"
+  register: emss_status
+  when: install_emss is succeeded
+  tags: [ 'emss_ins' ]
+
+#- debug:
+#    msg: "Service EMSS OK"
+#  when: emss_status is succeeded
+#  tags: [ 'emss_ins' ]

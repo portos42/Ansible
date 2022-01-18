@@ -1,0 +1,81 @@
+#### Récupération du nom de toutes les VM :
+- name: Gather only registered virtual machines
+  vmware_vm_facts:
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    vm_type: vm
+    validate_certs: no
+  delegate_to: localhost
+  register: vm_facts
+  run_once: true
+
+#- debug:
+#    msg: "{{ vm_facts.virtual_machines | to_json | from_json }}"
+
+#- debug:
+#    msg: "{{ ansible_hostname|upper }}"
+
+# Récupération du nom côté Vsphere de la machine.
+- name: Set VMname for ansible_hostname
+  set_fact:
+    vm: "{{ item.guest_name }}"
+  when: '"{{ ansible_hostname|upper }}" in "{{ item.guest_name|upper }}"'
+  with_items: "{{ (vm_facts.virtual_machines | to_json | from_json) }}"
+
+#- debug:
+#    msg: "{{ vm }}"
+
+- name: Gather disk facts from virtual machine using name
+  vmware_guest_disk_facts:
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    datacenter: "{{ datacenter }}"
+    validate_certs: no
+    name: "{{ vm }}"
+  delegate_to: localhost
+  register: disks_facts
+
+#- debug:
+#    msg: "{{ disks_facts }}"
+
+- name: Set first dict for ansible_hostname
+  set_fact:
+    data: "{{ item.value }}"
+  loop: "{{ query('dict', disks_facts) }}"
+  when: "'guest_disk_facts' in item.key"
+
+- debug:
+    msg: "{{ data }}"
+
+- name: Set datastore from data
+  set_fact:
+    datastore: "{{ item.value }}"
+  loop: "{{ query('dict', data) }}"
+  when: "'{{ data|length - 1}}' in item.key"
+
+- debug:
+    msg: "{{ datastore.backing_datastore }}"
+
+- name: Add disks to virtual machine using VMname & Datastore
+  vmware_guest_disk:
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    datacenter: "{{ datacenter }}"
+    validate_certs: no
+    name: "{{ vm }}"
+    disk:
+      - size_gb: 1
+        type: eagerzeroedthick
+        state: present
+        datastore: "{{ datastore.backing_datastore }}"
+        scsi_controller: 0
+        unit_number: "{{ datastore.unit_number + 1 }}"
+  delegate_to: localhost
+  register: disk_facts
+
+#- debug:
+#    msg: "{{ disk_facts }}"
+

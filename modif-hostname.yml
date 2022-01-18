@@ -1,0 +1,26 @@
+   - name: modification de hostname avec reboot
+     hosts: all
+     gather_facts: no
+     remote_user: root
+     become: yes
+
+     vars_prompt:
+       - name: "serveur_initial"
+         prompt: "Quel serveur voulez vous modifier?"
+         private: no
+
+       - name: "serveur_final"
+         prompt: "Quel serveur voulez vous modifier?"
+         private: no
+
+        
+     tasks:
+
+      - name: Ajout de la ligne
+        lineinfile:
+          path: /etc/hostname
+          backup: yes
+          line: "{{ serveur }}" 
+          state: present
+      - name: reboot
+        shell: shutdown -r now

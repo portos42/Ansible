@@ -1,0 +1,24 @@
+---
+- hosts: all
+  become: yes
+  gather_facts: yes
+
+  vars_prompt:
+    - name: "question"
+      prompt: "Quel serveur voulez vous modifier?"
+      private: no
+
+  roles:
+    - role: ivanti
+      vars:
+        hostname: icdvm-vc07
+        username: administrator@vsphere.local
+        password: \WwojcdiJ-/yL=7.@#sn
+        datacenter: ICOD 6
+        fs_emss: /opt/cheops/patchagent
+        file_system: ext4
+        vg_name: vg_emss
+        lv_name: lv_emss
+        pkg_dest: /tmp
+        ip_emss: 10.149.0.99
+        file_src_emss: UnixPatchAgent83057.tar

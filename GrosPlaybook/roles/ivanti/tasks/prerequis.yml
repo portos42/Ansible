@@ -1,0 +1,13 @@
+---
+# Vérification de l'existance du FS de emss
+- name: "Check FS"
+  stat:
+    path: "{{ fs_emss }}"
+  when: (ansible_facts['os_family'] == "RedHat" and ansible_facts['distribution_major_version']|int >= 5) or
+        (ansible_facts['distribution'] == "Debian" and ansible_facts['distribution_major_version']|int >= 7) or
+        (ansible_facts['distribution'] == "Ubuntu" and ansible_facts['distribution_major_version']|int >= 14)
+  register: check_fs
+
+#- debug:
+#    msg: "{{ check_fs.stat }}"
+

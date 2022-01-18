@@ -1,0 +1,23 @@
+---
+- name: "Get Prerequis"
+  include_tasks: prerequis.yml
+
+- name: "Add disk"
+  include_tasks: add_disk_vcenter.yml
+  when:  check_fs.stat.exists is defined and check_fs.stat.exists == false
+
+- name: "Create FS"
+  include_tasks: create_fs.yml
+  when:  disk_facts.changed is defined and disk_facts.changed == true
+
+- name: "Get Prerequis"
+  include_tasks: prerequis.yml
+
+- name: "Install Java"
+  include_tasks: java.yml
+  when:  check_fs.stat.exists == true
+
+- name : "Installation Agens EMSS"
+  include_tasks: install.yml
+  tags:
+    - emss_ins

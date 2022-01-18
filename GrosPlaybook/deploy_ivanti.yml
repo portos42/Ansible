@@ -1,0 +1,19 @@
+---
+- hosts: all
+  become: yes
+  gather_facts: yes
+
+  roles:
+    - role: ivanti
+      vars:
+        hostname: icdvm-vc08
+        username: administrator@vsphere.local
+        password: 8E*P2?5kit
+        datacenter: iCod 6.5
+        fs_emss: /opt/cheops/patchagent
+        file_system: ext4
+        vg_name: vg_emss
+        lv_name: lv_emss
+        pkg_dest: /tmp
+        ip_emss: 10.11.8.251 
+        file_src_emss: UnixPatchAgent83057.tar

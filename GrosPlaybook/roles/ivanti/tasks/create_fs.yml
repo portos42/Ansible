@@ -1,0 +1,83 @@
+- name: "Find /sys/class/scsi_host hostX softlinks"
+  find:
+    path: '/sys/class/scsi_host'
+    file_type: link
+    pattern: 'host*'
+  register: scsi_hosts
+  when:  check_fs.stat.isdir is not defined
+
+- name: debug scsi
+  debug:
+    msg: 'echo "- - -" > {{ item.path }}/scan'
+  with_items: "{{ scsi_hosts.files }}"
+
+- name: Rescanning for new disks
+  shell: 'echo "- - -" > {{ item.path }}/scan'
+  with_items: "{{ scsi_hosts.files }}"
+  when:  check_fs.stat.isdir is not defined
+  changed_when: false
+
+- name: "Check for new devices"
+  shell: "ls -ptr /dev/sd* | tail -1"
+  register: new_dev
+  when: scsi_hosts is succeeded and check_fs.stat.isdir is not defined
+
+- name: debug new_dev
+  debug:
+    msg: "{{ new_dev.stdout }}"
+
+#- name: Create a volume group on top of {{ new_dev.stdout }} with physical extent size = 4MB
+#  lvg:
+#    vg: "{{ vg_name }}" 
+#    pvs: "{{ new_dev.stdout }}"
+#  register: vg_create
+#  when: 
+#    - ansible_facts['os_family'] == "RedHat" and ansible_facts['distribution_major_version']|int >= 7
+#
+#- name: Create a logical volume usign all space with disks recently created
+#  lvol:
+#    vg: "{{ vg_name }}"
+#    lv: "{{ lv_name }}"
+#    size: 100%FREE
+#    pvs: "{{ new_dev.stdout }}"
+#  when: 
+#    - vg_create is succeeded
+#    - ansible_facts['os_family'] == "RedHat" and ansible_facts['distribution_major_version']|int >= 7
+#  register: lv_create
+
+- name: Create a physical group on top of {{ new_dev.stdout }}
+  command: pvcreate "{{ new_dev.stdout }}"
+#  when: 
+#    - ansible_facts['os_family'] == "RedHat" and ansible_facts['distribution_major_version']|int < 7
+  register: pv_create
+
+- name: Create a virtual volume on top of {{ new_dev.stdout }}
+  command: vgcreate "{{ vg_name }}" "{{ new_dev.stdout }}"
+  when: 
+    - pv_create is succeeded 
+#    - ansible_facts['os_family'] == "RedHat" and ansible_facts['distribution_major_version']|int < 7
+  register: vg_create
+
+- name: Create a logical volume on top of {{ vg_name }}
+  command: lvcreate -l 100%FREE -n "{{ lv_name }}" "{{ vg_name }}"
+  when:
+    - vg_create is succeeded
+#    - ansible_facts['os_family'] == "RedHat" and ansible_facts['distribution_major_version']|int < 7
+  register: lv_create
+
+- name: Create the file system on newly created Logical volume for "{{ fs_emss }}".
+  filesystem:
+    fstype: "{{ file_system }}" ## What type of filesystem required eg:(ext3, ext4, xfs etc.)
+    dev: "/dev/mapper/{{ vg_name}}-{{ lv_name }}" ## Full related path of device mapper to be created with creating FS.
+  when: lv_create is succeeded
+  register: fs_created
+
+- name: Mount the created filesystem ## This is to create the FSTAB entry and mount the Filesystem.
+  mount:
+    path: "{{ fs_emss }}" ## Mount point where to mount the FS.
+    src: "/dev/mapper/{{ vg_name }}-{{ lv_name }}" ## Full related path of device mapper to be mounted under mount point.
+    fstype: "{{ file_system }}" ## Filesystem type
+    opts: defaults ## Mount options
+    state: mounted
+  when: fs_created is succeeded
+  register: fs_mounted
